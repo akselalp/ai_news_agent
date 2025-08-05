@@ -96,7 +96,7 @@ class AINewsAgent:
             'nvidia_blog': {
                 'url': 'https://blogs.nvidia.com/feed/',
                 'parser': 'rss',
-                'limit': 3,
+                'limit': 5,
                 'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'GPU', 'deep learning']
             },
             'meta_research': {
@@ -108,12 +108,12 @@ class AINewsAgent:
             'huggingface': {
                 'url': 'https://huggingface.co/blog/feed.xml',
                 'parser': 'rss',
-                'limit': 3
+                'limit': 5
             },
             'openai_blog': {
                 'url': 'https://openai.com/blog/rss.xml',
                 'parser': 'rss',
-                'limit': 2
+                'limit': 5
             },
             'google_research': {
                 'url': 'https://research.google/blog/feed/',
@@ -124,12 +124,12 @@ class AINewsAgent:
             'deepmind': {
                 'url': 'https://deepmind.google/discover/blog/rss.xml',
                 'parser': 'rss',
-                'limit': 2
+                'limit': 5
             },
             'ai_news': {
                 'url': 'https://artificialintelligence-news.com/feed/',
                 'parser': 'rss',
-                'limit': 3
+                'limit': 5
             }
         }
     
