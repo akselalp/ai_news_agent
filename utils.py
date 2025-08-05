@@ -53,15 +53,51 @@ class NotionClient:
             # Convert markdown to Notion blocks
             blocks = self._markdown_to_notion_blocks(content)
             
-            # Create page
-            response = self.client.pages.create(
-                parent={"database_id": self.database_id},
-                properties={
-                    "Title": {"title": [{"text": {"content": title}}]},
-                    "Date": {"date": {"start": date}}
-                },
-                children=blocks
-            )
+            # Get day of week
+            from datetime import datetime
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            day_name = date_obj.strftime('%A')  # Monday, Tuesday, etc.
+            
+            # Get current time for posting
+            current_time = datetime.now().strftime('%I:%M %p').lower()  # 9:00 am
+            
+            # Get top story headline (first article title)
+            top_story = "No articles found"
+            if blocks and len(blocks) > 0:
+                # Look for the first heading that contains article title
+                for block in blocks:
+                    if block.get('type') == 'heading_3':
+                        top_story = block.get('heading_3', {}).get('rich_text', [{}])[0].get('text', {}).get('content', 'No title')
+                        break
+            
+            # Create page with new format
+            try:
+                # Try with Time Posted property
+                response = self.client.pages.create(
+                    parent={"database_id": self.database_id},
+                    properties={
+                        "Title": {"title": [{"text": {"content": f"Top AI News: {day_name}"}}]},
+                        "Date": {"date": {"start": date}},
+                        "Summary": {"rich_text": [{"text": {"content": top_story}}]},
+                        "Time Posted": {"rich_text": [{"text": {"content": current_time}}]}
+                    },
+                    children=blocks
+                )
+            except Exception as e:
+                if "Time Posted is not a property" in str(e):
+                    # Fallback without Time Posted property
+                    logger.info("Time Posted property not found, creating page without it")
+                    response = self.client.pages.create(
+                        parent={"database_id": self.database_id},
+                        properties={
+                            "Title": {"title": [{"text": {"content": f"Top AI News: {day_name}"}}]},
+                            "Date": {"date": {"start": date}},
+                            "Summary": {"rich_text": [{"text": {"content": top_story}}]}
+                        },
+                        children=blocks
+                    )
+                else:
+                    raise e
             
             logger.info(f"Created Notion page: {response['url']}")
             return True

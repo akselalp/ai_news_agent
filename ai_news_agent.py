@@ -71,19 +71,65 @@ class AINewsAgent:
         self.summarized_articles: List[Article] = []
         self.top_articles: List[Article] = []
         
-        # News sources configuration
+        # News sources configuration - optimized for quality and cost
         self.sources = {
-            'arxiv': {
+            'arxiv_ai': {
                 'url': 'http://export.arxiv.org/rss/cs.AI',
-                'parser': 'arxiv'
+                'parser': 'arxiv',
+                'limit': 3  # Limit to most recent
             },
-            'hackernews': {
-                'url': 'https://news.ycombinator.com/rss',
-                'parser': 'hackernews'
+            'arxiv_ml': {
+                'url': 'http://export.arxiv.org/rss/cs.LG',
+                'parser': 'arxiv',
+                'limit': 3
             },
-            'techcrunch': {
+            'hackernews_ai': {
+                'url': 'https://hn.algolia.com/api/v1/search?query=AI%20OR%20artificial%20intelligence%20OR%20machine%20learning&tags=story&hitsPerPage=5',
+                'parser': 'hackernews_api',
+                'limit': 5
+            },
+            'techcrunch_ai': {
                 'url': 'https://techcrunch.com/tag/artificial-intelligence/feed/',
-                'parser': 'techcrunch'
+                'parser': 'rss',
+                'limit': 5
+            },
+            'nvidia_blog': {
+                'url': 'https://blogs.nvidia.com/feed/',
+                'parser': 'rss',
+                'limit': 3,
+                'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'GPU', 'deep learning']
+            },
+            'meta_research': {
+                'url': 'https://research.facebook.com/blog/feed/',
+                'parser': 'rss',
+                'limit': 3,
+                'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'neural', 'deep learning']
+            },
+            'huggingface': {
+                'url': 'https://huggingface.co/blog/feed.xml',
+                'parser': 'rss',
+                'limit': 3
+            },
+            'openai_blog': {
+                'url': 'https://openai.com/blog/rss.xml',
+                'parser': 'rss',
+                'limit': 2
+            },
+            'google_research': {
+                'url': 'https://research.google/blog/feed/',
+                'parser': 'rss',
+                'limit': 3,
+                'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'neural', 'deep learning']
+            },
+            'deepmind': {
+                'url': 'https://deepmind.google/discover/blog/rss.xml',
+                'parser': 'rss',
+                'limit': 2
+            },
+            'ai_news': {
+                'url': 'https://artificialintelligence-news.com/feed/',
+                'parser': 'rss',
+                'limit': 3
             }
         }
     
@@ -110,14 +156,8 @@ class AINewsAgent:
             except Exception as e:
                 logger.error(f"Error fetching from {source_name}: {e}")
         
-        # Filter by date if specified
-        if date:
-            target_date = datetime.strptime(date, '%Y-%m-%d').date()
-            all_articles = [
-                article for article in all_articles 
-                if article.published_date and 
-                datetime.strptime(article.published_date.split('T')[0], '%Y-%m-%d').date() == target_date
-            ]
+        # Skip date filtering for now (include recent articles by default)
+        # Focus on getting high-quality recent content instead
         
         self.articles = all_articles
         logger.info(f"Total articles collected: {len(self.articles)}")
@@ -125,7 +165,7 @@ class AINewsAgent:
     
     def _fetch_from_source(self, source_name: str, source_config: Dict) -> List[Article]:
         """
-        Fetch articles from a specific source.
+        Fetch articles from a specific source with optimization.
         
         Args:
             source_name: Name of the source
@@ -135,34 +175,58 @@ class AINewsAgent:
             List of Article objects from the source
         """
         try:
-            response = requests.get(source_config['url'], timeout=30)
-            response.raise_for_status()
+            url = source_config['url']
+            parser_type = source_config['parser']
+            limit = source_config.get('limit', 10)
+            filter_keywords = source_config.get('filter_keywords', [])
             
-            if source_name == 'arxiv':
-                return self._parse_arxiv_feed(response.text)
-            elif source_name == 'hackernews':
-                return self._parse_hackernews_feed(response.text)
-            elif source_name == 'techcrunch':
-                return self._parse_techcrunch_feed(response.text)
+            if parser_type == 'hackernews_api':
+                # Use HN API for better filtering
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                return self._parse_hackernews_api(response.json(), source_name, limit)
             else:
-                return []
+                # Standard RSS parsing
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                
+                if parser_type == 'arxiv':
+                    articles = self._parse_arxiv_feed(response.text, source_name, limit)
+                elif parser_type == 'rss':
+                    articles = self._parse_rss_feed(response.text, source_name, limit)
+                else:
+                    # Legacy support
+                    if 'arxiv' in source_name:
+                        articles = self._parse_arxiv_feed(response.text, source_name, limit)
+                    elif 'hackernews' in source_name:
+                        articles = self._parse_hackernews_feed(response.text, source_name, limit)
+                    elif 'techcrunch' in source_name:
+                        articles = self._parse_techcrunch_feed(response.text, source_name, limit)
+                    else:
+                        return []
+                
+                # Apply keyword filtering if specified
+                if filter_keywords:
+                    articles = self._filter_by_keywords(articles, filter_keywords)
+                
+                return articles
                 
         except Exception as e:
             logger.error(f"Error fetching from {source_name}: {e}")
             return []
     
-    def _parse_arxiv_feed(self, feed_content: str) -> List[Article]:
+    def _parse_arxiv_feed(self, feed_content: str, source_name: str = 'arXiv', limit: int = 20) -> List[Article]:
         """Parse arXiv RSS feed for AI-related papers."""
         articles = []
         feed = feedparser.parse(feed_content)
         
-        for entry in feed.entries[:20]:  # Limit to 20 most recent
+        for entry in feed.entries[:limit]:  # Use dynamic limit
             # Filter for AI-related content
             if any(keyword in entry.title.lower() for keyword in ['ai', 'artificial intelligence', 'machine learning', 'neural']):
                 article = Article(
                     title=entry.title,
                     url=entry.link,
-                    source='arXiv',
+                    source=source_name,
                     published_date=entry.published,
                     content=entry.summary
                 )
@@ -170,18 +234,18 @@ class AINewsAgent:
         
         return articles
     
-    def _parse_hackernews_feed(self, feed_content: str) -> List[Article]:
+    def _parse_hackernews_feed(self, feed_content: str, source_name: str = 'Hacker News', limit: int = 50) -> List[Article]:
         """Parse Hacker News RSS feed for AI-related posts."""
         articles = []
         feed = feedparser.parse(feed_content)
         
-        for entry in feed.entries[:50]:  # Check more entries for AI content
+        for entry in feed.entries[:limit]:  # Check entries for AI content
             # Filter for AI-related content
             if any(keyword in entry.title.lower() for keyword in ['ai', 'artificial intelligence', 'machine learning', 'gpt', 'openai', 'anthropic']):
                 article = Article(
                     title=entry.title,
                     url=entry.link,
-                    source='Hacker News',
+                    source=source_name,
                     published_date=entry.published,
                     content=entry.summary
                 )
@@ -189,22 +253,67 @@ class AINewsAgent:
         
         return articles
     
-    def _parse_techcrunch_feed(self, feed_content: str) -> List[Article]:
+    def _parse_techcrunch_feed(self, feed_content: str, source_name: str = 'TechCrunch', limit: int = 20) -> List[Article]:
         """Parse TechCrunch AI feed."""
         articles = []
         feed = feedparser.parse(feed_content)
         
-        for entry in feed.entries[:20]:
+        for entry in feed.entries[:limit]:
             article = Article(
                 title=entry.title,
                 url=entry.link,
-                source='TechCrunch',
+                source=source_name,
                 published_date=entry.published,
                 content=entry.summary
             )
             articles.append(article)
         
         return articles
+    
+    def _parse_rss_feed(self, feed_content: str, source_name: str, limit: int = 20) -> List[Article]:
+        """Parse generic RSS feed."""
+        articles = []
+        feed = feedparser.parse(feed_content)
+        
+        for entry in feed.entries[:limit]:
+            article = Article(
+                title=entry.title,
+                url=entry.link,
+                source=source_name,
+                published_date=getattr(entry, 'published', ''),
+                content=getattr(entry, 'summary', '')[:200]  # Truncate for cost optimization
+            )
+            articles.append(article)
+        
+        return articles
+    
+    def _parse_hackernews_api(self, api_response: dict, source_name: str, limit: int = 5) -> List[Article]:
+        """Parse Hacker News API response."""
+        articles = []
+        
+        for hit in api_response.get('hits', [])[:limit]:
+            if hit.get('url') and hit.get('title'):
+                article = Article(
+                    title=hit['title'],
+                    url=hit.get('url', f"https://news.ycombinator.com/item?id={hit.get('objectID')}"),
+                    source=source_name,
+                    published_date=hit.get('created_at', ''),
+                    content=hit.get('comment_text', '')[:200] if hit.get('comment_text') else ''
+                )
+                articles.append(article)
+        
+        return articles
+    
+    def _filter_by_keywords(self, articles: List[Article], keywords: List[str]) -> List[Article]:
+        """Filter articles by keywords in title or content."""
+        filtered_articles = []
+        
+        for article in articles:
+            text_to_search = (article.title + ' ' + article.content).lower()
+            if any(keyword.lower() in text_to_search for keyword in keywords):
+                filtered_articles.append(article)
+        
+        return filtered_articles
     
     def summarize_articles(self) -> List[Article]:
         """
@@ -263,12 +372,12 @@ class AINewsAgent:
         try:
             client = openai.OpenAI()
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",  # Much cheaper model
                 messages=[
                     {"role": "system", "content": "You are an expert AI researcher and technology analyst. Provide clear, concise summaries of AI news articles."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=150,
+                max_tokens=60,  # Reduced tokens for cost optimization
                 temperature=0.3
             )
             
@@ -319,12 +428,12 @@ class AINewsAgent:
         try:
             client = openai.OpenAI()
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",  # Much cheaper model
                 messages=[
                     {"role": "system", "content": "You are an expert AI analyst. Select the most important AI news stories based on technical significance, business impact, and research value."},
                     {"role": "user", "content": ranking_prompt}
                 ],
-                max_tokens=100,
+                max_tokens=50,  # Reduced tokens for ranking
                 temperature=0.2
             )
             
