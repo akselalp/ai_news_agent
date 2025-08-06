@@ -506,7 +506,7 @@ class AINewsAgent:
         return content
     
     def _output_notion(self, date: str) -> str:
-        """Output to Notion using Notion API."""
+        """Output via Notion."""
         from utils import NotionClient
         
         notion_client = NotionClient()
@@ -515,8 +515,12 @@ class AINewsAgent:
         # Generate markdown content
         content = self._generate_markdown_content(date)
         
-        if notion_client.create_page(title, content, date):
+        # Create page and capture URL
+        page_url = notion_client.create_page(title, content, date)
+        if page_url:
             logger.info(f"Successfully posted to Notion: {title}")
+            # Store the URL for notifications
+            self.last_notion_url = page_url
             return content
         else:
             logger.error("Failed to post to Notion")
