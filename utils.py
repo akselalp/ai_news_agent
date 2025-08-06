@@ -165,6 +165,27 @@ class NotionClient:
                         }]
                     }
                 })
+            elif line.startswith('**Link:**'):
+                # Handle links - convert to clickable URL blocks
+                link_text = line.replace('**Link:**', '').strip()
+                if link_text.startswith('http'):
+                    # Create a clickable URL block
+                    blocks.append({
+                        "object": "block",
+                        "type": "bookmark",
+                        "bookmark": {
+                            "url": link_text
+                        }
+                    })
+                else:
+                    # Fallback to regular paragraph if not a valid URL
+                    blocks.append({
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [{"type": "text", "text": {"content": line}}]
+                        }
+                    })
             else:
                 # Regular paragraph
                 blocks.append({
