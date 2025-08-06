@@ -1,14 +1,15 @@
 # AI News Agent
 
-A smart Python agent that runs daily to fetch AI-related news, summarize articles using GPT-4, rank the most important stories, and output the top 10 AI updates of the day.
+A smart Python agent that runs daily to fetch AI-related news, summarizes articles using GPT-o4-mini, ranks the most important stories, and outputs the top 10 AI updates of the day. Also sends a notification to an iPhone using Pushover with the Notion URL which takes the user directly to the Notion page with the top 10 AI articles of the day.
 
 ## Features
 
 - **Multi-source news aggregation**: Fetches from arXiv, Hacker News, TechCrunch, and more
-- **AI-powered summarization**: Uses GPT-4 to create concise 2-3 sentence summaries
-- **Intelligent ranking**: GPT-4 ranks articles by importance for AI researchers, builders, and investors
+- **AI-powered summarization**: Uses GPT-o4-mini to create concise 2-3 sentence summaries
+- **Intelligent ranking**: GPT-o4-mini ranks articles by importance for AI researchers, builders, and investors
 - **Multiple output formats**: Markdown files, Notion pages, and email delivery
 - **Scheduled execution**: Can run daily automatically
+- **Scheduled Updates and Notifications**: Updates Notion each day and sends a notification to an Iphone with the Notion page URL using Pushover
 - **Comprehensive logging**: Detailed logs for monitoring and debugging
 - **Error handling**: Robust error handling and fallback mechanisms
 
@@ -27,13 +28,7 @@ pip install -r requirements.txt
 
 ### 2. Environment Setup
 
-Copy the example environment file and configure your API keys:
-
-```bash
-cp env_example.txt .env
-```
-
-Edit `.env` with your API keys:
+Create and edit `.env` with your API keys:
 
 ```env
 # Required: OpenAI API Key
@@ -42,6 +37,10 @@ OPENAI_API_KEY=your_openai_api_key_here
 # Optional: Notion Integration
 NOTION_TOKEN=your_notion_token_here
 NOTION_DATABASE_ID=your_notion_database_id_here
+
+# Optional: Pushover Configuration (iPhone notifications)
+PUSHOVER_TOKEN=your_app_token_here
+PUSHOVER_USER=your_user_key_here
 
 # Optional: Email Configuration
 SMTP_SERVER=smtp.gmail.com
@@ -61,7 +60,7 @@ LOG_LEVEL=INFO
 python ai_news_agent.py
 
 # Run for a specific date
-python ai_news_agent.py --date 2024-01-15
+python ai_news_agent.py --date 2025-01-15
 
 # Run with debug logging
 python ai_news_agent.py --debug
@@ -81,7 +80,7 @@ python ai_news_agent.py
 
 This will:
 1. Fetch AI-related articles from multiple sources
-2. Summarize each article using GPT-4
+2. Summarize each article using GPT-o4-mini
 3. Rank and select the top 10 most important stories
 4. Save the results to `top_ai_news_YYYY-MM-DD.md`
 
@@ -111,9 +110,9 @@ python ai_news_agent.py --schedule
 The default output creates a markdown file with the following structure:
 
 ```markdown
-# Top AI News - 2024-01-15
+# Top AI News - 2025-01-15
 
-Generated on: 2024-01-15 14:30:00
+Generated on: 2025-01-15 14:30:00
 
 ## Top 10 AI Updates of the Day
 
@@ -121,7 +120,7 @@ Generated on: 2024-01-15 14:30:00
 
 **Source:** [Source Name]
 
-**Summary:** [GPT-4 generated 2-3 sentence summary]
+**Summary:** [GPT-o4-mini generated 2-3 sentence summary]
 
 **Link:** [Article URL]
 
@@ -139,6 +138,17 @@ To use Notion integration:
 5. Get the database ID from the URL
 6. Configure the environment variables
 
+### Pushover Integration
+
+To use Pushover integration:
+
+1. Create a Pushover account at https://pushover.net/app
+2. Get your Pushover User Key form the main page
+3. Create the app in Pushover to get your App Token, Click "Create an Application" and name it something like "AI News Agent"
+4. Add both values to your .env file
+5. Install the Python package: pip install pushover-complete
+6. Test it with a notification
+
 ### Email Integration
 
 To use email delivery:
@@ -152,9 +162,15 @@ To use email delivery:
 
 The agent currently fetches from:
 
-- **arXiv** (cs.AI): Latest AI research papers
-- **Hacker News**: AI-related posts and discussions
-- **TechCrunch**: AI technology news and startups
+- arXiv AI & ML papers (latest research)
+- Hacker News AI discussions
+- TechCrunch AI news
+- NVIDIA Blog (GPU/AI content)
+- Hugging Face Blog (ML tools)
+- OpenAI Blog (latest updates)
+- Google Research (AI research)
+- Meta Research (filtered AI content)
+- AI News dedicated sites
 
 Additional sources can be easily added by extending the `sources` configuration in the `AINewsAgent` class.
 
@@ -175,7 +191,7 @@ Additional sources can be easily added by extending the `sources` configuration 
 4. **Ranking**: Uses GPT-4 to rank articles by importance
 5. **Output Generation**: Creates formatted output in various formats
 
-### GPT-4 Prompts
+### GPT-o4-mini Prompts
 
 The agent uses carefully crafted prompts for:
 
@@ -191,6 +207,8 @@ The agent uses carefully crafted prompts for:
 | `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-4 access |
 | `NOTION_TOKEN` | No | Notion integration token |
 | `NOTION_DATABASE_ID` | No | Notion database ID |
+| `PUSHOVER_TOKEN` | No | Pushover integration app token |
+| `PUSHOVER_USERD` | No | Pushover user key |
 | `SMTP_SERVER` | No | SMTP server for email |
 | `EMAIL_USER` | No | Email username |
 | `EMAIL_PASSWORD` | No | Email password |
@@ -294,6 +312,10 @@ To add a new output format:
 - Verify your integration token is correct
 - Ensure the database is shared with your integration
 - Check the database has the required properties
+
+**Pushover Integration Issues**
+- Verify your app token working correctly
+- Ensure your user key is correct
 
 **Email Delivery Issues**
 - Verify SMTP settings
