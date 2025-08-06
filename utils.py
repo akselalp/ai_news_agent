@@ -34,7 +34,7 @@ class NotionClient:
             logger.error("notion-client not installed. Install with: pip install notion-client")
             self.client = None
     
-    def create_page(self, title: str, content: str, date: str) -> bool:
+    def create_page(self, title: str, content: str, date: str) -> str:
         """
         Create a new page in Notion with AI news summary.
         
@@ -44,10 +44,10 @@ class NotionClient:
             date: Date string
             
         Returns:
-            True if successful, False otherwise
+            Notion page URL if successful, None otherwise
         """
         if not self.client:
-            return False
+            return None
         
         try:
             # Convert markdown to Notion blocks
@@ -99,12 +99,13 @@ class NotionClient:
                 else:
                     raise e
             
-            logger.info(f"Created Notion page: {response['url']}")
-            return True
+            page_url = response['url']
+            logger.info(f"Created Notion page: {page_url}")
+            return page_url
             
         except Exception as e:
             logger.error(f"Error creating Notion page: {e}")
-            return False
+            return None
     
     def _markdown_to_notion_blocks(self, markdown_content: str) -> List[dict]:
         """
