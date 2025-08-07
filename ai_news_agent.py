@@ -103,12 +103,13 @@ class AINewsAgent:
                 'limit': 5,
                 'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'GPU', 'deep learning']
             },
-            'meta_research': {
-                'url': 'https://research.facebook.com/blog/feed/',
-                'parser': 'rss',
-                'limit': 3,
-                'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'neural', 'deep learning']
-            },
+            # Meta Research - RSS feed not available, commenting out for now
+            # 'meta_research': {
+            #     'url': 'https://research.facebook.com/blog/feed/',
+            #     'parser': 'rss',
+            #     'limit': 3,
+            #     'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'neural', 'deep learning']
+            # },
             'huggingface': {
                 'url': 'https://huggingface.co/blog/feed.xml',
                 'parser': 'rss',
@@ -119,17 +120,46 @@ class AINewsAgent:
                 'parser': 'rss',
                 'limit': 5
             },
-            'google_research': {
-                'url': 'https://research.google/blog/feed/',
-                'parser': 'rss',
-                'limit': 3,
-                'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'neural', 'deep learning']
-            },
+            # Google Research - site structure is complex, commenting out for now
+            # 'google_research': {
+            #     'url': 'https://research.google/blog/',
+            #     'parser': 'web_scrape',
+            #     'limit': 3,
+            #     'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'neural', 'deep learning']
+            # },
             'deepmind': {
-                'url': 'https://deepmind.google/discover/blog/rss.xml',
-                'parser': 'rss',
+                'url': 'https://deepmind.google/discover/blog/',
+                'parser': 'web_scrape',
                 'limit': 5
             },
+            'gemini': {
+                'url': 'https://ai.google.dev/',
+                'parser': 'web_scrape',
+                'limit': 5
+            },
+            'anthropic': {
+                'url': 'https://www.anthropic.com/news',
+                'parser': 'web_scrape',
+                'limit': 5
+            },
+            'mistral_ai': {
+                'url': 'https://mistral.ai/news/',
+                'parser': 'web_scrape',
+                'limit': 5
+            },
+            # Qwen - blog page is empty, commenting out for now
+            # 'qwen': {
+            #     'url': 'https://qwen.ai/blog',
+            #     'parser': 'web_scrape',
+            #     'limit': 3
+            # },
+            # ASML - site structure is complex, commenting out for now
+            # 'asml': {
+            #     'url': 'https://www.asml.com/en/news/press-releases',
+            #     'parser': 'web_scrape',
+            #     'limit': 3,
+            #     'filter_keywords': ['AI', 'artificial intelligence', 'machine learning', 'chip', 'semiconductor']
+            # },
             'ai_news': {
                 'url': 'https://artificialintelligence-news.com/feed/',
                 'parser': 'rss',
@@ -189,6 +219,17 @@ class AINewsAgent:
                 response = requests.get(url, timeout=30)
                 response.raise_for_status()
                 return self._parse_hackernews_api(response.json(), source_name, limit)
+            elif parser_type == 'web_scrape':
+                # Web scraping for sites without RSS feeds
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                articles = self._parse_web_scrape(response.text, source_name, limit, url)
+                
+                # Apply keyword filtering if specified
+                if filter_keywords:
+                    articles = self._filter_by_keywords(articles, filter_keywords)
+                
+                return articles
             else:
                 # Standard RSS parsing
                 response = requests.get(url, timeout=30)
@@ -305,6 +346,348 @@ class AINewsAgent:
                     content=hit.get('comment_text', '')[:200] if hit.get('comment_text') else ''
                 )
                 articles.append(article)
+        
+        return articles
+    
+    def _parse_web_scrape(self, html_content: str, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse web pages for articles using BeautifulSoup."""
+        articles = []
+        
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Different parsing strategies based on source
+            if 'google' in source_name.lower():
+                articles = self._parse_google_research(soup, source_name, limit, base_url)
+            elif 'deepmind' in source_name.lower():
+                articles = self._parse_deepmind(soup, source_name, limit, base_url)
+            elif 'gemini' in source_name.lower():
+                articles = self._parse_gemini(soup, source_name, limit, base_url)
+            elif 'anthropic' in source_name.lower():
+                articles = self._parse_anthropic(soup, source_name, limit, base_url)
+            elif 'mistral' in source_name.lower():
+                articles = self._parse_mistral(soup, source_name, limit, base_url)
+            elif 'qwen' in source_name.lower():
+                articles = self._parse_qwen(soup, source_name, limit, base_url)
+            elif 'asml' in source_name.lower():
+                articles = self._parse_asml(soup, source_name, limit, base_url)
+            else:
+                # Generic parsing
+                articles = self._parse_generic_web(soup, source_name, limit, base_url)
+            
+        except Exception as e:
+            logger.error(f"Error parsing web content for {source_name}: {e}")
+        
+        return articles
+    
+    def _parse_google_research(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse Google Research blog."""
+        articles = []
+        
+        # Look for article links with more specific targeting
+        article_links = soup.find_all('a', href=True)
+        
+        for link in article_links[:limit * 5]:  # Get more to filter
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            # Filter for actual article links
+            if (href and title and len(title) > 10 and 
+                not any(skip in href.lower() for skip in ['#', 'javascript:', 'mailto:', 'tel:']) and
+                not any(skip in title.lower() for skip in ['skip', 'menu', 'navigation', 'cookie', 'privacy'])):
+                
+                # Make URL absolute
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                # Only include if it looks like an article
+                if any(keyword in title.lower() for keyword in ['research', 'ai', 'machine learning', 'neural', 'model']):
+                    article = Article(
+                        title=title,
+                        url=url,
+                        source=source_name,
+                        content=title
+                    )
+                    articles.append(article)
+                    
+                    if len(articles) >= limit:
+                        break
+        
+        return articles
+    
+    def _parse_deepmind(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse DeepMind blog."""
+        articles = []
+        
+        # Look for article links
+        article_links = soup.find_all('a', href=True)
+        
+        for link in article_links[:limit * 3]:
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            if href and title and len(title) > 10:
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                article = Article(
+                    title=title,
+                    url=url,
+                    source=source_name,
+                    content=title
+                )
+                articles.append(article)
+                
+                if len(articles) >= limit:
+                    break
+        
+        return articles
+    
+    def _parse_gemini(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse Gemini blog."""
+        articles = []
+        
+        # Look for article links
+        article_links = soup.find_all('a', href=True)
+        
+        for link in article_links[:limit * 3]:
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            if href and title and len(title) > 10:
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                article = Article(
+                    title=title,
+                    url=url,
+                    source=source_name,
+                    content=title
+                )
+                articles.append(article)
+                
+                if len(articles) >= limit:
+                    break
+        
+        return articles
+    
+    def _parse_anthropic(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse Anthropic news."""
+        articles = []
+        
+        # Look for article cards and headlines
+        # Anthropic uses specific card structures for their news
+        article_cards = soup.find_all(['article', 'div'], class_=lambda x: x and any(word in x.lower() for word in ['card', 'article', 'news', 'post']))
+        
+        # Also look for links that might be articles
+        article_links = soup.find_all('a', href=True)
+        
+        # Combine both approaches
+        potential_articles = []
+        
+        # Process cards first
+        for card in article_cards:
+            # Look for headlines within cards
+            headlines = card.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+            for headline in headlines:
+                title = headline.get_text(strip=True)
+                if title and len(title) > 10:
+                    # Find the closest link
+                    link = headline.find_parent('a') or headline.find('a')
+                    href = link.get('href') if link else None
+                    if href:
+                        potential_articles.append((title, href))
+        
+        # Process direct links
+        for link in article_links:
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            # Filter out navigation and non-article links
+            if (href and title and len(title) > 10 and
+                not any(skip in href.lower() for skip in ['#', 'javascript:', 'mailto:', 'tel:']) and
+                not any(skip in title.lower() for skip in ['skip', 'menu', 'navigation', 'cookie', 'privacy', 'press@', 'support.'])):
+                
+                potential_articles.append((title, href))
+        
+        # Remove duplicates and process
+        seen_titles = set()
+        for title, href in potential_articles:
+            if title not in seen_titles and len(articles) < limit:
+                seen_titles.add(title)
+                
+                # Make URL absolute
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                # Only include if it looks like a real article (exclude contact/email links)
+                if (any(keyword in title.lower() for keyword in ['claude', 'anthropic', 'introducing', 'announcement', 'release', 'model', 'ai']) and
+                    not any(skip in title.lower() for skip in ['press@', 'support.', 'mailto:', '@anthropic.com']) and
+                    not any(skip in href.lower() for skip in ['mailto:', 'tel:'])):
+                    article = Article(
+                        title=title,
+                        url=url,
+                        source=source_name,
+                        content=title
+                    )
+                    articles.append(article)
+        
+        return articles
+    
+    def _parse_mistral(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse Mistral AI news."""
+        articles = []
+        
+        # Look for article links
+        article_links = soup.find_all('a', href=True)
+        
+        for link in article_links[:limit * 3]:
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            if href and title and len(title) > 10:
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                article = Article(
+                    title=title,
+                    url=url,
+                    source=source_name,
+                    content=title
+                )
+                articles.append(article)
+                
+                if len(articles) >= limit:
+                    break
+        
+        return articles
+    
+    def _parse_qwen(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse Qwen blog."""
+        articles = []
+        
+        # Look for article links with better filtering
+        article_links = soup.find_all('a', href=True)
+        
+        for link in article_links[:limit * 5]:
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            # Filter for actual article links
+            if (href and title and len(title) > 10 and 
+                not any(skip in href.lower() for skip in ['#', 'javascript:', 'mailto:', 'tel:']) and
+                not any(skip in title.lower() for skip in ['skip', 'menu', 'navigation', 'cookie', 'privacy'])):
+                
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                # Only include if it looks like an article
+                if any(keyword in title.lower() for keyword in ['qwen', 'model', 'ai', 'release', 'update']):
+                    article = Article(
+                        title=title,
+                        url=url,
+                        source=source_name,
+                        content=title
+                    )
+                    articles.append(article)
+                    
+                    if len(articles) >= limit:
+                        break
+        
+        return articles
+    
+    def _parse_asml(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Parse ASML press releases."""
+        articles = []
+        
+        # Look for article links with better filtering
+        article_links = soup.find_all('a', href=True)
+        
+        for link in article_links[:limit * 5]:
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            # Filter for actual article links
+            if (href and title and len(title) > 10 and 
+                not any(skip in href.lower() for skip in ['#', 'javascript:', 'mailto:', 'tel:']) and
+                not any(skip in title.lower() for skip in ['skip', 'menu', 'navigation', 'cookie', 'privacy'])):
+                
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                # Only include if it looks like a press release or AI-related
+                if any(keyword in title.lower() for keyword in ['press', 'release', 'news', 'ai', 'semiconductor', 'chip']):
+                    article = Article(
+                        title=title,
+                        url=url,
+                        source=source_name,
+                        content=title
+                    )
+                    articles.append(article)
+                    
+                    if len(articles) >= limit:
+                        break
+        
+        return articles
+    
+    def _parse_generic_web(self, soup, source_name: str, limit: int, base_url: str) -> List[Article]:
+        """Generic web parsing for unknown sites."""
+        articles = []
+        
+        # Look for article links
+        article_links = soup.find_all('a', href=True)
+        
+        for link in article_links[:limit * 3]:
+            href = link.get('href')
+            title = link.get_text(strip=True)
+            
+            if href and title and len(title) > 10:
+                if href.startswith('/'):
+                    url = base_url.rstrip('/') + href
+                elif href.startswith('http'):
+                    url = href
+                else:
+                    url = base_url.rstrip('/') + '/' + href
+                
+                article = Article(
+                    title=title,
+                    url=url,
+                    source=source_name,
+                    content=title
+                )
+                articles.append(article)
+                
+                if len(articles) >= limit:
+                    break
         
         return articles
     
