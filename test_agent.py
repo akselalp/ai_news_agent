@@ -53,9 +53,9 @@ def test_agent_initialization():
     assert hasattr(agent, 'sources')
     
     # Check that sources are configured
-    assert 'arxiv' in agent.sources
-    assert 'hackernews' in agent.sources
-    assert 'techcrunch' in agent.sources
+    assert 'arxiv_ai' in agent.sources
+    assert 'hackernews_ai' in agent.sources
+    assert 'techcrunch_ai' in agent.sources
     
     logger.info("✓ AINewsAgent initialization test passed")
 
