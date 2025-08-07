@@ -33,6 +33,8 @@ Create and edit `.env` with your API keys:
 ```env
 # Required: OpenAI API Key
 OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_ORGANIZATION_ID=your_openai_organization_id_here
+OPENAI_PROJECT_ID=your_openai_project_id_here
 
 # Optional: Notion Integration
 NOTION_TOKEN=your_notion_token_here
@@ -88,7 +90,7 @@ This will:
 
 ```bash
 # Generate news for a specific date
-python ai_news_agent.py --date 2024-01-15
+python ai_news_agent.py --date 2025-01-15
 
 # Output to Notion (requires Notion API setup)
 python ai_news_agent.py --output notion
@@ -204,9 +206,11 @@ The agent uses carefully crafted prompts for:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-4 access |
-| `NOTION_TOKEN` | No | Notion integration token |
-| `NOTION_DATABASE_ID` | No | Notion database ID |
+| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-o4-mini access |
+| `OPENAI_ORGANIZATION_ID` | Yes | OpenAI Organization ID for GPT-o4-mini access |
+| `OPENAI_PROJECT_ID` | Yes | OpenAI Project ID for GPT-o4-mini access |
+| `NOTION_TOKEN` | Yes | Notion integration token |
+| `NOTION_DATABASE_ID` | Yes | Notion database ID |
 | `PUSHOVER_TOKEN` | No | Pushover integration app token |
 | `PUSHOVER_USERD` | No | Pushover user key |
 | `SMTP_SERVER` | No | SMTP server for email |
