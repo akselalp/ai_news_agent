@@ -234,7 +234,7 @@ If you want to upgrade for better quality, one could switch to:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-4o-mini access |
-| `OPENAI_ORGANIZATION_ID` | Yes | OpenAI Organization ID for GPT-o4-mini access |
+| `OPENAI_ORGANIZATION_ID` | Yes | OpenAI Organization ID for GPT-4o-mini access |
 | `OPENAI_PROJECT_ID` | Yes | OpenAI Project ID for GPT-4o-mini access |
 | `NOTION_TOKEN` | Yes | Notion integration token |
 | `NOTION_DATABASE_ID` | Yes | Notion database ID |
