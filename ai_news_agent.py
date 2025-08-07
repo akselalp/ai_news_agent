@@ -50,6 +50,10 @@ if not openai.api_key:
     logger.error("OPENAI_API_KEY not found in environment variables")
     sys.exit(1)
 
+# Get organization and project IDs for project-based API keys
+OPENAI_ORGANIZATION_ID = os.getenv('OPENAI_ORGANIZATION_ID')
+OPENAI_PROJECT_ID = os.getenv('OPENAI_PROJECT_ID')
+
 
 @dataclass
 class Article:
@@ -370,7 +374,12 @@ class AINewsAgent:
         """
         
         try:
-            client = openai.OpenAI()
+            # Create client with organization header if available
+            client_kwargs = {}
+            if OPENAI_ORGANIZATION_ID:
+                client_kwargs['organization'] = OPENAI_ORGANIZATION_ID
+                
+            client = openai.OpenAI(**client_kwargs)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",  # Much cheaper model
                 messages=[
@@ -426,7 +435,12 @@ class AINewsAgent:
         """
         
         try:
-            client = openai.OpenAI()
+            # Create client with organization header if available
+            client_kwargs = {}
+            if OPENAI_ORGANIZATION_ID:
+                client_kwargs['organization'] = OPENAI_ORGANIZATION_ID
+                
+            client = openai.OpenAI(**client_kwargs)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",  # Much cheaper model
                 messages=[
