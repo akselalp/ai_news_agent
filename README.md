@@ -1,12 +1,12 @@
 # AI News Agent
 
-A smart Python agent that runs daily to fetch AI-related news, summarizes articles using GPT-o4-mini, ranks the most important stories, and outputs the top 10 AI updates of the day. Also sends a notification to an iPhone using Pushover with the Notion URL which takes the user directly to the Notion page with the top 10 AI articles of the day.
+A smart Python agent that runs daily to fetch AI-related news, summarizes articles using GPT-4o-mini, ranks the most important stories, and outputs the top 10 AI updates of the day. Also sends a notification to an iPhone using Pushover with the Notion URL which takes the user directly to the Notion page with the top 10 AI articles of the day.
 
 ## Features
 
 - **Multi-source news aggregation**: Fetches from arXiv, Hacker News, TechCrunch, and more
-- **AI-powered summarization**: Uses GPT-o4-mini to create concise 2-3 sentence summaries
-- **Intelligent ranking**: GPT-o4-mini ranks articles by importance for AI researchers, builders, and investors
+- **AI-powered summarization**: Uses GPT-4o-mini to create concise 2-3 sentence summaries
+- **Intelligent ranking**: GPT-4o-mini ranks articles by importance for AI researchers, builders, and investors
 - **Multiple output formats**: Markdown files, Notion pages, and email delivery
 - **Scheduled execution**: Can run daily automatically
 - **Scheduled Updates and Notifications**: Updates Notion each day and sends a notification to an Iphone with the Notion page URL using Pushover
@@ -82,7 +82,7 @@ python ai_news_agent.py
 
 This will:
 1. Fetch AI-related articles from multiple sources
-2. Summarize each article using GPT-o4-mini
+2. Summarize each article using GPT-4o-mini
 3. Rank and select the top 10 most important stories
 4. Save the results to `top_ai_news_YYYY-MM-DD.md`
 
@@ -122,7 +122,7 @@ Generated on: 2025-01-15 14:30:00
 
 **Source:** [Source Name]
 
-**Summary:** [GPT-o4-mini generated 2-3 sentence summary]
+**Summary:** [GPT-4o-mini generated 2-3 sentence summary]
 
 **Link:** [Article URL]
 
@@ -189,16 +189,43 @@ Additional sources can be easily added by extending the `sources` configuration 
 
 1. **Article Collection**: Fetches articles from multiple sources
 2. **Content Filtering**: Filters for AI-related content
-3. **Summarization**: Uses GPT-4 to create concise summaries
-4. **Ranking**: Uses GPT-4 to rank articles by importance
+3. **Summarization**: Uses GPT-4o-mini to create concise summaries
+4. **Ranking**: Uses GPT-4o-mini to rank articles by importance
 5. **Output Generation**: Creates formatted output in various formats
 
-### GPT-o4-mini Prompts
+### GPT-4o-mini Prompts
 
 The agent uses carefully crafted prompts for:
 
 - **Summarization**: Creates 2-3 sentence summaries focusing on technical developments and business implications
 - **Ranking**: Selects the most important articles based on technical significance, business impact, and research value
+
+## Cost Comparison
+
+### OpenAI API
+
+- GPT-4o-mini: ~$0.00015 per 1K tokens (Currenty used model and very affordable)
+- GPT-4o: ~$0.005 per 1K tokens (33x more expensive)
+- GPT-4: ~$0.03 per 1K tokens (200x more expensive)
+- GPT-3.5-turbo: ~$0.0005 per 1K tokens (Though 3x more expensive than 4o-mini)
+
+### Model Options Available
+
+If you want to upgrade for better quality, one could switch to:
+- GPT-4o-mini - Current choice, good balance
+- GPT-4o - Better reasoning, more expensive
+- GPR-4 - Excellent reasoning, very capable
+
+### Anthropic (Claude) - Optional
+
+- Claude 3.5 Sonnet: ~$0.003 per 1K tokens (20x more expensive than 4o-mini)
+- Claude 3.5 Haiku: ~$0.00025 per 1K tokens (1.7x more expensive than 4o-mini)
+- Claude 3 Opus: ~$0.015 per 1K tokens (100x more expensive than 4o-mini)
+
+### Google (Gemini) - Optional
+
+- Gemini 1.5 Pro: ~$0.00375 per 1K tokens (25x more expensive than 4o-mini)
+- Gemini 1.5 Flash: ~$0.000075 per 1K tokens (2x cheaper than 4o-mini!)
 
 ## Configuration
 
@@ -206,9 +233,9 @@ The agent uses carefully crafted prompts for:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-o4-mini access |
+| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-4o-mini access |
 | `OPENAI_ORGANIZATION_ID` | Yes | OpenAI Organization ID for GPT-o4-mini access |
-| `OPENAI_PROJECT_ID` | Yes | OpenAI Project ID for GPT-o4-mini access |
+| `OPENAI_PROJECT_ID` | Yes | OpenAI Project ID for GPT-4o-mini access |
 | `NOTION_TOKEN` | Yes | Notion integration token |
 | `NOTION_DATABASE_ID` | Yes | Notion database ID |
 | `PUSHOVER_TOKEN` | No | Pushover integration app token |
@@ -305,7 +332,7 @@ To add a new output format:
 **OpenAI API Errors**
 - Verify your API key is correct
 - Check your OpenAI account has sufficient credits
-- Ensure you have access to GPT-4
+- Ensure you have access to GPT-4o-mini
 
 **Network Errors**
 - Check your internet connection
