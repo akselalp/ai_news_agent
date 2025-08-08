@@ -18,7 +18,7 @@ def check_usage():
         # Note: This is a placeholder - OpenAI's usage endpoint may require different approach
         print("📊 Cost monitoring feature")
         print("💡 Tip: Check your usage at https://platform.openai.com/usage")
-        print("🎯 Target: Keep daily costs under $0.02 with optimized settings")
+        print("🎯 Target: Keep daily costs under $0.50 with optimized settings")
         
     except Exception as e:
         print(f"Error checking usage: {e}")
