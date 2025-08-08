@@ -54,7 +54,7 @@ def create_launch_agent():
     <key>ProgramArguments</key>
     <array>
         <string>{python_path}</string>
-        <string>{current_dir}/daily_scheduler.py</string>
+        <string>{current_dir}/run_agent.py</string>
     </array>
     
     <key>WorkingDirectory</key>
