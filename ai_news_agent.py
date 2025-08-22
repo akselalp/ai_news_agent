@@ -1,12 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
+# Use the line above if using system's default Python
+# But if you're using a virtual environment:
+# Then use your python path to the venv (copy and paste line belowto line 1) which stores your packages (in requirements.txt) such as:
+#!/usr/usr_name/anaconda3/envs/venv_name/bin/python3
 """
 AI News Agent - Daily AI News Aggregator and Summarizer
 
-This script fetches AI-related news from multiple sources, summarizes them using GPT-4,
+This script fetches AI-related news from multiple sources, summarizes them using GPT-4o-mini,
 ranks the most important stories, and outputs the top 10 AI updates of the day.
 
-Author: AI News Agent
-Date: 2024
+Author: Aksel A.
+Date: August-2025
 """
 
 import os
