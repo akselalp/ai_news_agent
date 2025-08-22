@@ -318,11 +318,19 @@ For automated daily execution on macOS:
        <key>WorkingDirectory</key>
        <string>/path/to/ai_news_agent</string>
        
+       <key>StartCalendarInterval</key>
+       <dict>
+           <key>Hour</key>
+           <integer>9</integer>
+           <key>Minute</key>
+           <integer>0</integer>
+       </dict>
+       
        <key>RunAtLoad</key>
-       <true/>
+       <false/>
        
        <key>KeepAlive</key>
-       <true/>
+       <false/>
        
        <key>StandardErrorPath</key>
        <string>/path/to/ai_news_agent/scheduler_error.log</string>
@@ -344,6 +352,10 @@ For automated daily execution on macOS:
    ```
 
 **Note**: Replace `/path/to/your/python` with your actual Python path (e.g., `/usr/bin/python3` or `/Users/username/anaconda3/envs/venv_name/bin/python3`) and `/path/to/ai_news_agent` with your actual project directory.
+
+**Configuration Options:**
+- **Scheduled Execution** (shown above): Runs at exactly 9:00 AM daily using `StartCalendarInterval`
+- **Continuous Execution**: Change `RunAtLoad` to `true` and `KeepAlive` to `true` if you want it to run continuously and check every minute
 
 ## Error Handling
 
