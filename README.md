@@ -15,12 +15,17 @@ A smart Python agent that runs daily to fetch AI-related news, summarizes articl
 
 ## Quick Start
 
-### 1. Installation
-
+### 1. Clone and Setup
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/akselalp/ai_news_agent.git
 cd ai_news_agent
+
+# Create virtual environment (recommended)
+python3 -m venv ai_news_env
+source ai_news_env/bin/activate  # On macOS/Linux
+# or
+ai_news_env\Scripts\activate     # On Windows
 
 # Install dependencies
 pip install -r requirements.txt
@@ -326,6 +331,35 @@ To add a new output format:
 3. Add the format to the `output_results()` method
 
 ## Troubleshooting
+
+### Python Environment Issues
+
+**Shebang Line Problems**
+If you encounter issues with the shebang line (`#!/usr/bin/env python3`):
+
+1. **For system Python users**: The default shebang should work fine
+2. **For virtual environment users**: 
+   - Open `ai_news_agent.py`
+   - Replace line 1: `#!/usr/bin/env python3` 
+   - With: `#!/path/to/your/venv/bin/python3`
+   - Example: `#!/Users/username/anaconda3/envs/myenv/bin/python3`
+
+**Virtual Environment Setup**
+```bash
+# Create virtual environment
+python3 -m venv ai_news_env
+
+# Activate it
+source ai_news_env/bin/activate  # On macOS/Linux
+# or
+ai_news_env\Scripts\activate     # On Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the agent
+python ai_news_agent.py
+```
 
 ### Common Issues
 

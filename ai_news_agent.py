@@ -1,8 +1,7 @@
 #!/usr/bin/env python3 
 # Use the line above if using system's default Python.
-# But if you're using a virtual environment:
-# Then use your python path to the venv (copy and paste line below to line 1) which stores your packages (in requirements.txt) such as:
-#!/usr/usr_name/anaconda3/envs/venv_name/bin/python3
+# But if you're using a virtual environment, replace line 1 with:
+# #!/usr/usr_name/anaconda3/envs/venv_name/bin/python3
 """
 AI News Agent - Daily AI News Aggregator and Summarizer
 
