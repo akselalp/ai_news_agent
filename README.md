@@ -290,6 +290,61 @@ crontab -e
 4. Set action to start program: `python ai_news_agent.py`
 5. Set start in: `/path/to/ai_news_agent`
 
+### Using macOS LaunchAgent (macOS)
+
+For automated daily execution on macOS:
+
+1. **Create LaunchAgent Configuration**
+   ```bash
+   # Create the plist file
+   nano ~/Library/LaunchAgents/com.user.ai-news-agent.plist
+   ```
+
+2. **Add This Configuration** (replace paths with your own):
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+       <key>Label</key>
+       <string>com.user.ai-news-agent</string>
+       
+       <key>ProgramArguments</key>
+       <array>
+           <string>/path/to/your/python</string>
+           <string>/path/to/ai_news_agent/daily_scheduler.py</string>
+       </array>
+       
+       <key>WorkingDirectory</key>
+       <string>/path/to/ai_news_agent</string>
+       
+       <key>RunAtLoad</key>
+       <true/>
+       
+       <key>KeepAlive</key>
+       <true/>
+       
+       <key>StandardErrorPath</key>
+       <string>/path/to/ai_news_agent/scheduler_error.log</string>
+       
+       <key>StandardOutPath</key>
+       <string>/path/to/ai_news_agent/scheduler_output.log</string>
+   </dict>
+   </plist>
+   ```
+
+3. **Load the LaunchAgent**
+   ```bash
+   launchctl load ~/Library/LaunchAgents/com.user.ai-news-agent.plist
+   ```
+
+4. **Verify it's Running**
+   ```bash
+   launchctl list | grep ai-news
+   ```
+
+**Note**: Replace `/path/to/your/python` with your actual Python path (e.g., `/usr/bin/python3` or `/Users/username/anaconda3/envs/venv_name/bin/python3`) and `/path/to/ai_news_agent` with your actual project directory.
+
 ## Error Handling
 
 The agent includes comprehensive error handling:
