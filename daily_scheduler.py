@@ -140,26 +140,15 @@ def run_scheduler():
     logger.info("🕘 Starting AI News Agent scheduler...")
     logger.info("📅 Scheduled to run daily at 9:00 AM")
     
-    # Schedule the job for 9:00 AM daily
-    schedule.every().day.at("09:00").do(run_daily_ai_news)
-    
     # Also allow manual testing
     if len(sys.argv) > 1 and sys.argv[1] == '--test':
         logger.info("🧪 Running test execution...")
         run_daily_ai_news()
         return
     
-    # Keep the scheduler running
-    while True:
-        try:
-            schedule.run_pending()
-            time.sleep(60)  # Check every minute
-        except KeyboardInterrupt:
-            logger.info("👋 Scheduler stopped by user")
-            break
-        except Exception as e:
-            logger.error(f"Scheduler error: {e}")
-            time.sleep(300)  # Wait 5 minutes before retrying
+    # When run by LaunchAgent, just execute once
+    logger.info("🚀 LaunchAgent execution - running daily news pipeline")
+    run_daily_ai_news()
 
 if __name__ == "__main__":
     run_scheduler()
