@@ -326,12 +326,6 @@ For automated daily execution on macOS:
            <integer>0</integer>
        </dict>
        
-       <key>RunAtLoad</key>
-       <false/>
-       
-       <key>KeepAlive</key>
-       <false/>
-       
        <key>StandardErrorPath</key>
        <string>/path/to/ai_news_agent/scheduler_error.log</string>
        
