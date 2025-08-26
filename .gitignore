@@ -47,6 +47,7 @@ logs/
 # Generated files
 top_ai_news_*.md
 ai_news_agent.log
+launchagent.txt
 
 # OS
 .DS_Store
