@@ -53,30 +53,26 @@ def create_launch_agent():
     
     <key>ProgramArguments</key>
     <array>
-        <string>{python_path}</string>
-        <string>{current_dir}/run_agent.py</string>
+        <string>/path/to/your/python</string>
+        <string>/path/to/ai_news_agent/daily_scheduler.py</string>
     </array>
     
     <key>WorkingDirectory</key>
-    <string>{current_dir}</string>
+    <string>/path/to/ai_news_agent</string>
     
-    <key>RunAtLoad</key>
-    <true/>
-    
-    <key>KeepAlive</key>
-    <true/>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
     
     <key>StandardErrorPath</key>
-    <string>{current_dir}/scheduler_error.log</string>
+    <string>/path/to/ai_news_agent/scheduler_error.log</string>
     
     <key>StandardOutPath</key>
-    <string>{current_dir}/scheduler_output.log</string>
-    
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin</string>
-    </dict>
+    <string>/path/to/ai_news_agent/scheduler_output.log</string>
 </dict>
 </plist>"""
     
