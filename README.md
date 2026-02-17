@@ -67,7 +67,7 @@ LOG_LEVEL=INFO
 python ai_news_agent.py
 
 # Run for a specific date
-python ai_news_agent.py --date 2025-01-15
+python ai_news_agent.py --date 2025-08-30
 
 # Run with debug logging
 python ai_news_agent.py --debug
@@ -95,7 +95,7 @@ This will:
 
 ```bash
 # Generate news for a specific date
-python ai_news_agent.py --date 2025-01-15
+python ai_news_agent.py --date 2025-08-30
 
 # Output to Notion (requires Notion API setup)
 python ai_news_agent.py --output notion
@@ -117,9 +117,9 @@ python ai_news_agent.py --schedule
 The default output creates a markdown file with the following structure:
 
 ```markdown
-# Top AI News - 2025-01-15
+# Top AI News - 2025-08-30
 
-Generated on: 2025-01-15 14:30:00
+Generated on: 2025-08-30 09:00:00
 
 ## Top 10 AI Updates of the Day
 
@@ -127,7 +127,7 @@ Generated on: 2025-01-15 14:30:00
 
 **Source:** [Source Name]
 
-**Summary:** [GPT-4o-mini generated 2-3 sentence summary]
+**Summary:** [GPT-5-nano generated 2-3 sentence summary]
 
 **Link:** [Article URL]
 
@@ -194,8 +194,8 @@ Additional sources can be easily added by extending the `sources` configuration 
 
 1. **Article Collection**: Fetches articles from multiple sources
 2. **Content Filtering**: Filters for AI-related content
-3. **Summarization**: Uses GPT-4o-mini to create concise summaries
-4. **Ranking**: Uses GPT-4o-mini to rank articles by importance
+3. **Summarization**: Uses GPT-5-nano to create concise summaries
+4. **Ranking**: Uses GPT-5-nano to rank articles by importance
 5. **Output Generation**: Creates formatted output in various formats
 
 ### GPT-4o-mini Prompts
@@ -209,15 +209,16 @@ The agent uses carefully crafted prompts for:
 
 ### OpenAI API
 
+- GPT-5-nano: ~$0.00005 per 1K tokens (Currenty used model and very affordable)
 - GPT-4o-mini: ~$0.00015 per 1K tokens (Currenty used model and very affordable)
 - GPT-4o: ~$0.005 per 1K tokens (33x more expensive)
 - GPT-4: ~$0.03 per 1K tokens (200x more expensive)
-- GPT-3.5-turbo: ~$0.0005 per 1K tokens (Though 3x more expensive than 4o-mini)
 
 ### Model Options Available
 
 If you want to upgrade for better quality, one could switch to:
-- GPT-4o-mini - Current choice, good balance
+- GPT-5-nano - Current choice, great balance
+- GPT-4o-mini - Previous choice, good balance
 - GPT-4o - Better reasoning, more expensive
 - GPR-4 - Excellent reasoning, very capable
 
