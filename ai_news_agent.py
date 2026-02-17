@@ -5,11 +5,11 @@
 """
 AI News Agent - Daily AI News Aggregator and Summarizer
 
-This script fetches AI-related news from multiple sources, summarizes them using GPT-4o-mini,
+This script fetches AI-related news from multiple sources, summarizes them using GPT-5-nano,
 ranks the most important stories, and outputs the top 10 AI updates of the day.
 
 Author: Aksel A.
-Date: August-2025
+Date: February-2026
 """
 
 import os
@@ -28,7 +28,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # Third-party imports
-import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 import schedule
 import time
@@ -47,16 +47,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configure OpenAI
-openai.api_key = os.getenv('OPENAI_API_KEY')
-if not openai.api_key:
+DEFAULT_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
+REQUEST_TIMEOUT = (10, 30)  # (connect timeout, read timeout) 10 seconds for connect, 30 seconds for read
+
+## Configure OpenAI API
+# OpenAI .env variables - Get organization and project IDs for project-based API keys
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_ORGANIZATION_ID = os.getenv("OPENAI_ORGANIZATION_ID")
+OPENAI_PROJECT_ID = os.getenv("OPENAI_PROJECT_ID")
+
+if not OPENAI_API_KEY:
     logger.error("OPENAI_API_KEY not found in environment variables")
     sys.exit(1)
-
-# Get organization and project IDs for project-based API keys
-OPENAI_ORGANIZATION_ID = os.getenv('OPENAI_ORGANIZATION_ID')
-OPENAI_PROJECT_ID = os.getenv('OPENAI_PROJECT_ID')
-
 
 @dataclass
 class Article:
@@ -169,6 +178,28 @@ class AINewsAgent:
                 'limit': 5
             }
         }
+
+        # Create ONE OpenAI client and reuse it
+        client_kwargs = {}
+        if OPENAI_ORGANIZATION_ID:
+            client_kwargs["organization"] = OPENAI_ORGANIZATION_ID
+        if OPENAI_PROJECT_ID:
+            client_kwargs["project"] = OPENAI_PROJECT_ID
+
+        self.client = OpenAI(api_key=OPENAI_API_KEY, **client_kwargs)
+
+    def _with_retries(self, fn, max_tries: int = 4):
+        """Retry helper for flaky network/429/5xx errors."""
+        import random
+        for attempt in range(max_tries):
+            try:
+                return fn()
+            except Exception as e:
+                if attempt == max_tries - 1:
+                    raise
+                sleep_s = (2 ** attempt) + random.random()
+                logger.warning(f"Retrying after error: {e} (sleep {sleep_s:.2f}s)")
+                time.sleep(sleep_s)     
     
     def get_articles(self, date: Optional[str] = None) -> List[Article]:
         """
@@ -219,12 +250,12 @@ class AINewsAgent:
             
             if parser_type == 'hackernews_api':
                 # Use HN API for better filtering
-                response = requests.get(url, timeout=30)
+                response = self._with_retries(lambda: requests.get(url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT))
                 response.raise_for_status()
                 return self._parse_hackernews_api(response.json(), source_name, limit)
             elif parser_type == 'web_scrape':
                 # Web scraping for sites without RSS feeds
-                response = requests.get(url, timeout=30)
+                response = self._with_retries(lambda: requests.get(url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT))
                 response.raise_for_status()
                 articles = self._parse_web_scrape(response.text, source_name, limit, url)
                 
@@ -235,7 +266,7 @@ class AINewsAgent:
                 return articles
             else:
                 # Standard RSS parsing
-                response = requests.get(url, timeout=30)
+                response = self._with_retries(lambda: requests.get(url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT))
                 response.raise_for_status()
                 
                 if parser_type == 'arxiv':
@@ -707,7 +738,7 @@ class AINewsAgent:
     
     def summarize_articles(self) -> List[Article]:
         """
-        Summarize all collected articles using GPT-4.
+        Summarize all collected articles using GPT-5.
         
         Returns:
             List of Article objects with summaries
@@ -738,7 +769,7 @@ class AINewsAgent:
     
     def _summarize_with_gpt(self, article: Article) -> str:
         """
-        Summarize a single article using GPT-4.
+        Summarize a single article using GPT.
         
         Args:
             article: Article object to summarize
@@ -750,31 +781,30 @@ class AINewsAgent:
         
         prompt = f"""
         Please provide a concise 2-3 sentence summary of this AI-related article. 
-        Focus on the key technical developments, business implications, or research breakthroughs.
-        
+        - Focus on the key technical developments, business implications, or research breakthroughs.
+        - Do not speculate. If key details are missing, say so briefly.
+        - Output ONLY the summary.
+
+        <article>
         Title: {article.title}
         Source: {article.source}
-        Content: {content[:1000]}  # Limit content length
+        Content: {content[:1000]}
+        </article>
         
         Summary:
-        """
+        """.strip()
+        # 1000 = Limit content length
         
         try:
-            # Create client with organization header if available
-            client_kwargs = {}
-            if OPENAI_ORGANIZATION_ID:
-                client_kwargs['organization'] = OPENAI_ORGANIZATION_ID
-                
-            client = openai.OpenAI(**client_kwargs)
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Much cheaper model
+            response = self._with_retries(lambda: self.client.chat.completions.create(
+                model="gpt-5-nano",  # Much cheaper model
                 messages=[
-                    {"role": "system", "content": "You are an expert AI researcher and technology analyst. Provide clear, concise summaries of AI news articles."},
+                    {"role": "system", "content": "You are an expert AI researcher and technology analyst. Provide clear, concise summaries of AI news articles. No speculation. If some details are missing, still summarize what is known; only mark the missing parts as 'Not specified'. Write exactly 2-3 sentences."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=60,  # Reduced tokens for cost optimization
-                temperature=0.3
-            )
+                max_tokens=120,  # Reduced tokens for cost optimization
+                temperature=0.15
+            ))
             
             return response.choices[0].message.content.strip()
             
@@ -784,7 +814,7 @@ class AINewsAgent:
     
     def rank_top_articles(self, top_n: int = 10) -> List[Article]:
         """
-        Rank and select the top N most important articles using GPT-4.
+        Rank and select the top N most important articles using GPT-5.
         
         Args:
             top_n: Number of top articles to select
@@ -797,53 +827,67 @@ class AINewsAgent:
         if not self.summarized_articles:
             logger.error("No summarized articles available for ranking")
             return []
+
+        total = len(self.summarized_articles)
+        effective_top_n = min(top_n, total)
         
         # Prepare summaries for ranking
         summaries_text = ""
         for i, article in enumerate(self.summarized_articles):
             summaries_text += f"{i+1}. {article.title}\n"
             summaries_text += f"   Source: {article.source}\n"
-            summaries_text += f"   Summary: {article.summary}\n\n"
+            summaries_text += f"   Summary: {article.summary[:350]}\n\n"
         
         ranking_prompt = f"""
-        Here are AI news summaries from today. Choose and rank the {top_n} most important ones 
+        Here are AI news summaries from today. Choose and rank the {effective_top_n} most important ones 
         for AI researchers, builders, and investors. Consider:
         - Technical significance and innovation
         - Business and market impact
         - Research breakthroughs
         - Industry trends and developments
         
-        Return ONLY the numbers of the top {top_n} articles in order of importance (1 being most important):
+        Return ONLY the numbers of the top {effective_top_n} articles in order of importance (1 being most important):
         
         {summaries_text}
         
-        Top {top_n} article numbers (comma-separated):
-        """
+        Top {effective_top_n} article numbers (comma-separated):
+        """.strip()
         
         try:
-            # Create client with organization header if available
-            client_kwargs = {}
-            if OPENAI_ORGANIZATION_ID:
-                client_kwargs['organization'] = OPENAI_ORGANIZATION_ID
-                
-            client = openai.OpenAI(**client_kwargs)
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Much cheaper model
+            response = self._with_retries(lambda: self.client.chat.completions.create(
+                model="gpt-5-nano",  # Much cheaper model
                 messages=[
-                    {"role": "system", "content": "You are an expert AI analyst. Select the most important AI news stories based on technical significance, business impact, and research value."},
+                    {"role": "system", "content": f"You are an expert AI analyst. Select the most important AI news stories based on technical significance, business impact, and research value. Return ONLY comma-separated article numbers (e.g., 3,1,7). Do not repeat numbers. Choose exactly {effective_top_n} distinct articles."},
                     {"role": "user", "content": ranking_prompt}
                 ],
-                max_tokens=50,  # Reduced tokens for ranking
-                temperature=0.2
-            )
+                max_tokens=30,  # Reduced tokens for ranking
+                temperature=0.0
+            ))
             
             # Parse the response to get article indices
             response_text = response.choices[0].message.content.strip()
+
             try:
                 # Extract numbers from response
                 import re
-                numbers = re.findall(r'\d+', response_text)
-                top_indices = [int(num) - 1 for num in numbers[:top_n]]  # Convert to 0-based indexing
+                numbers = [int(n) for n in re.findall(r'\d+', response_text)]
+                seen = set()
+                top_indices = []
+                for n in numbers:
+                    idx = n - 1
+                    if n <= 0:
+                        continue
+                    if idx < 0 or idx >= len(self.summarized_articles):
+                        continue
+                    if idx in seen:
+                        continue
+                    seen.add(idx)
+                    top_indices.append(idx)
+                    if len(top_indices) == effective_top_n:
+                        break
+
+                if len(top_indices) < effective_top_n:
+                    raise ValueError("Insufficient valid ranked indices")
                 
                 # Get the top articles
                 top_articles = [self.summarized_articles[i] for i in top_indices if i < len(self.summarized_articles)]
@@ -855,13 +899,13 @@ class AINewsAgent:
             except (ValueError, IndexError) as e:
                 logger.error(f"Error parsing ranking response: {e}")
                 # Fallback: return first N articles
-                self.top_articles = self.summarized_articles[:top_n]
+                self.top_articles = self.summarized_articles[:effective_top_n]
                 return self.top_articles
                 
         except Exception as e:
             logger.error(f"Error ranking articles: {e}")
             # Fallback: return first N articles
-            self.top_articles = self.summarized_articles[:top_n]
+            self.top_articles = self.summarized_articles[:effective_top_n]
             return self.top_articles
     
     def output_results(self, date: Optional[str] = None, output_format: str = 'markdown') -> str:
@@ -947,7 +991,7 @@ class AINewsAgent:
         """Generate markdown content for output."""
         content = f"# Top AI News - {date}\n\n"
         content += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        content += "## Top 10 AI Updates of the Day\n\n"
+        content += f"## Top {len(self.top_articles)} AI Updates of the Day\n\n"
         
         for i, article in enumerate(self.top_articles, 1):
             content += f"### {i}. {article.title}\n\n"
