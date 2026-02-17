@@ -1,12 +1,12 @@
 # AI News Agent
 
-A smart Python agent that runs daily to fetch AI-related news, summarizes articles using GPT-4o-mini, ranks the most important stories, and outputs the top 10 AI updates of the day. Also sends a notification to an iPhone using Pushover with the Notion URL which takes the user directly to the Notion page with the top 10 AI articles of the day.
+A smart Python agent that runs daily to fetch AI-related news, summarizes articles using GPT-5-nano, ranks the most important stories, and outputs the top 10 AI updates of the day. Also sends a notification to an iPhone using Pushover with the Notion URL which takes the user directly to the Notion page with the top 10 AI articles of the day.
 
 ## Features
 
 - **Multi-source news aggregation**: Fetches from arXiv, Hacker News, TechCrunch, and more
-- **AI-powered summarization**: Uses GPT-4o-mini to create concise 2-3 sentence summaries
-- **Intelligent ranking**: GPT-4o-mini ranks articles by importance for AI researchers, builders, and investors
+- **AI-powered summarization**: Uses GPT-5-nano to create concise 2-3 sentence summaries
+- **Intelligent ranking**: GPT-5-nano ranks articles by importance for AI researchers, builders, and investors
 - **Multiple output formats**: Markdown files, Notion pages, and email delivery
 - **Scheduled execution**: Can run daily automatically
 - **Scheduled Updates and Notifications**: Updates Notion each day and sends a notification to an Iphone with the Notion page URL using Pushover
@@ -87,7 +87,7 @@ python ai_news_agent.py
 
 This will:
 1. Fetch AI-related articles from multiple sources
-2. Summarize each article using GPT-4o-mini
+2. Summarize each article using GPT-5-nano
 3. Rank and select the top 10 most important stories
 4. Save the results to `top_ai_news_YYYY-MM-DD.md`
 
@@ -198,7 +198,7 @@ Additional sources can be easily added by extending the `sources` configuration 
 4. **Ranking**: Uses GPT-5-nano to rank articles by importance
 5. **Output Generation**: Creates formatted output in various formats
 
-### GPT-4o-mini Prompts
+### GPT-5-nano Prompts
 
 The agent uses carefully crafted prompts for:
 
@@ -209,10 +209,10 @@ The agent uses carefully crafted prompts for:
 
 ### OpenAI API
 
-- GPT-5-nano: ~$0.00005 per 1K tokens (Currenty used model and very affordable)
-- GPT-4o-mini: ~$0.00015 per 1K tokens (Currenty used model and very affordable)
-- GPT-4o: ~$0.005 per 1K tokens (33x more expensive)
-- GPT-4: ~$0.03 per 1K tokens (200x more expensive)
+- GPT-5-nano: ~$0.00005 per 1K tokens (Currenty used model and extremely affordable)
+- GPT-4o-mini: ~$0.00015 per 1K tokens (Previously used model and very affordable)
+- GPT-4o: ~$0.005 per 1K tokens (100x more expensive)
+- GPT-4: ~$0.03 per 1K tokens (600x more expensive)
 
 ### Model Options Available
 
@@ -224,14 +224,14 @@ If you want to upgrade for better quality, one could switch to:
 
 ### Anthropic (Claude) - Optional
 
-- Claude 3.5 Sonnet: ~$0.003 per 1K tokens (20x more expensive than 4o-mini)
-- Claude 3.5 Haiku: ~$0.00025 per 1K tokens (1.7x more expensive than 4o-mini)
-- Claude 3 Opus: ~$0.015 per 1K tokens (100x more expensive than 4o-mini)
+- Claude 3.5 Sonnet: ~$0.003 per 1K tokens (60x more expensive than 5-nano)
+- Claude 3.5 Haiku: ~$0.00025 per 1K tokens (5.1x more expensive than 5-nano)
+- Claude 3 Opus: ~$0.015 per 1K tokens (300x more expensive than 5-nano)
 
 ### Google (Gemini) - Optional
 
-- Gemini 1.5 Pro: ~$0.00375 per 1K tokens (25x more expensive than 4o-mini)
-- Gemini 1.5 Flash: ~$0.000075 per 1K tokens (2x cheaper than 4o-mini!)
+- Gemini 1.5 Pro: ~$0.00375 per 1K tokens (75x more expensive than 5-nano)
+- Gemini 1.5 Flash: ~$0.000075 per 1K tokens (1.5x cheaper than 5-nano!)
 
 ## Configuration
 
@@ -239,9 +239,9 @@ If you want to upgrade for better quality, one could switch to:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-4o-mini access |
-| `OPENAI_ORGANIZATION_ID` | Yes | OpenAI Organization ID for GPT-4o-mini access |
-| `OPENAI_PROJECT_ID` | Yes | OpenAI Project ID for GPT-4o-mini access |
+| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT-5-nano access |
+| `OPENAI_ORGANIZATION_ID` | Yes | OpenAI Organization ID for GPT-5-nano access |
+| `OPENAI_PROJECT_ID` | Yes | OpenAI Project ID for GPT-5-nano access |
 | `NOTION_TOKEN` | Yes | Notion integration token |
 | `NOTION_DATABASE_ID` | Yes | Notion database ID |
 | `PUSHOVER_TOKEN` | No | Pushover integration app token |
@@ -428,7 +428,7 @@ python ai_news_agent.py
 **OpenAI API Errors**
 - Verify your API key is correct
 - Check your OpenAI account has sufficient credits
-- Ensure you have access to GPT-4o-mini
+- Ensure you have access to GPT-5-nano
 
 **Network Errors**
 - Check your internet connection
