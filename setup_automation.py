@@ -125,7 +125,7 @@ def check_usage():
         # Note: This is a placeholder - OpenAI's usage endpoint may require different approach
         print("📊 Cost monitoring feature")
         print("💡 Tip: Check your usage at https://platform.openai.com/usage")
-        print("🎯 Target: Keep daily costs under $0.50 with optimized settings")
+        print("🎯 Target: Keep daily costs under $0.20 with optimized settings")
         
     except Exception as e:
         print(f"Error checking usage: {e}")
@@ -176,10 +176,10 @@ def main():
     print(f"   Unload:       launchctl unload {plist_file}")
     print()
     print("💰 Cost optimization tips:")
-    print("   - Using gpt-4o-mini instead of gpt-4 (90% cost reduction)")
+    print("   - Using gpt-5-nano instead of gpt-4o-mini (~60% cost reduction)")
     print("   - Limited article count per source")
     print("   - Reduced token limits")
-    print("   - Estimated daily cost: $0.10-0.30 (vs previous $2.00)")
+    print("   - Estimated daily cost: $0.05-0.10 (vs previous $2.00)")
 
 if __name__ == "__main__":
     main()

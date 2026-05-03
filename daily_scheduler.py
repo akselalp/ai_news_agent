@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-Daily AI News Scheduler
+Daily AI News Runner (LaunchAgent)
 
-This script runs the AI News Agent daily at 9 AM and sends results to Notion.
+This script is intended to be triggered by macOS LaunchAgent (or cron) at 9:00 AM and sends results to Notion (and optionally to Slack).
+It runs once, posts results, sends notifications, then exits.
 It also includes cost monitoring and iOS notification support.
 """
 
 import os
 import sys
 import time
-import schedule
+# import schedule
 import logging
 from datetime import datetime
 from ai_news_agent import AINewsAgent
+from utils import SlackClient
 
 # Setup logging
 logging.basicConfig(
@@ -84,6 +86,19 @@ def run_daily_ai_news():
         day_name = datetime.now().strftime('%A')
         
         output = agent.run_daily_pipeline(today, 'notion')
+
+        # Also post the same content to Slack
+        slack = SlackClient()
+
+        MAX_LEN = 35000
+        slack_text = output
+        if slack_text and len(slack_text) > MAX_LEN:
+            slack_text = slack_text[:MAX_LEN] + "\n\n...(truncated)"
+
+        slack_ok = slack.send_message(slack_text)
+
+        if not slack_ok:
+            logger.warning("❌ Slack post failed")
         
         # Calculate execution time
         execution_time = time.time() - start_time
@@ -137,8 +152,8 @@ def run_daily_ai_news():
 
 def run_scheduler():
     """Run the scheduler."""
-    logger.info("🕘 Starting AI News Agent scheduler...")
-    logger.info("📅 Scheduled to run daily at 9:00 AM")
+    logger.info("🕘 Starting AI News Agent runner...")
+    logger.info("📅 Running daily news pipeline once, then exiting. Triggered externally (LaunchAgent/cron).")
     
     # Also allow manual testing
     if len(sys.argv) > 1 and sys.argv[1] == '--test':

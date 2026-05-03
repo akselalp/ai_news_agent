@@ -19,13 +19,14 @@ import argparse
 import json
 import requests
 import feedparser
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from datetime import datetime #, timedelta
+from typing import List, Dict, Optional #, Tuple
 from dataclasses import dataclass
 from pathlib import Path
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from urllib.parse import urljoin
+# import smtplib
+# from email.mime.text import MIMEText
+# from email.mime.multipart import MIMEMultipart
 
 # Third-party imports
 from openai import OpenAI
@@ -179,6 +180,10 @@ class AINewsAgent:
             }
         }
 
+        # Reuse HTTP connections (faster + fewer TLS handshakes)
+        self.http = requests.Session()
+        self.http.headers.update(DEFAULT_HEADERS)
+
         # Create ONE OpenAI client and reuse it
         client_kwargs = {}
         if OPENAI_ORGANIZATION_ID:
@@ -189,17 +194,33 @@ class AINewsAgent:
         self.client = OpenAI(api_key=OPENAI_API_KEY, **client_kwargs)
 
     def _with_retries(self, fn, max_tries: int = 4):
-        """Retry helper for flaky network/429/5xx errors."""
+        """Retry helper for flaky network/429/5xx errors (not for 400-level bad requests)."""
         import random
+        from openai import BadRequestError, RateLimitError, APIError, APIConnectionError, APITimeoutError
+
         for attempt in range(max_tries):
             try:
                 return fn()
+
+            # Don't retry invalid requests
+            except BadRequestError:
+                raise
+
+            # Retry these
+            except (RateLimitError, APIError, APIConnectionError, APITimeoutError) as e:
+                if attempt == max_tries - 1:
+                    raise
+                sleep_s = (2 ** attempt) + random.random()
+                logger.warning(f"Retrying after error: {e} (sleep {sleep_s:.2f}s)")
+                time.sleep(sleep_s)
+
+            # For anything else, keep your current behavior (optional)
             except Exception as e:
                 if attempt == max_tries - 1:
                     raise
                 sleep_s = (2 ** attempt) + random.random()
                 logger.warning(f"Retrying after error: {e} (sleep {sleep_s:.2f}s)")
-                time.sleep(sleep_s)     
+                time.sleep(sleep_s)   
     
     def get_articles(self, date: Optional[str] = None) -> List[Article]:
         """
@@ -227,9 +248,23 @@ class AINewsAgent:
         # Skip date filtering for now (include recent articles by default)
         # Focus on getting high-quality recent content instead
         
-        self.articles = all_articles
-        logger.info(f"Total articles collected: {len(self.articles)}")
+        self.articles = self._dedupe_articles(all_articles)
+        logger.info(f"Total articles collected (deduped): {len(self.articles)}")
         return self.articles
+
+    def _dedupe_articles(self, articles: List[Article]) -> List[Article]:
+        """Remove duplicate articles by URL (fallback to title)."""
+        seen = set()
+        out = []
+        for a in articles:
+            key = (a.url or "").strip().lower()
+            if not key:
+                key = (a.title or "").strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(a)
+        return out
     
     def _fetch_from_source(self, source_name: str, source_config: Dict) -> List[Article]:
         """
@@ -250,12 +285,12 @@ class AINewsAgent:
             
             if parser_type == 'hackernews_api':
                 # Use HN API for better filtering
-                response = self._with_retries(lambda: requests.get(url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT))
+                response = self._with_retries(lambda: self.http.get(url, timeout=REQUEST_TIMEOUT))
                 response.raise_for_status()
                 return self._parse_hackernews_api(response.json(), source_name, limit)
             elif parser_type == 'web_scrape':
                 # Web scraping for sites without RSS feeds
-                response = self._with_retries(lambda: requests.get(url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT))
+                response = self._with_retries(lambda: self.http.get(url, timeout=REQUEST_TIMEOUT))
                 response.raise_for_status()
                 articles = self._parse_web_scrape(response.text, source_name, limit, url)
                 
@@ -266,7 +301,7 @@ class AINewsAgent:
                 return articles
             else:
                 # Standard RSS parsing
-                response = self._with_retries(lambda: requests.get(url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT))
+                response = self._with_retries(lambda: self.http.get(url, timeout=REQUEST_TIMEOUT))
                 response.raise_for_status()
                 
                 if parser_type == 'arxiv':
@@ -369,18 +404,22 @@ class AINewsAgent:
     def _parse_hackernews_api(self, api_response: dict, source_name: str, limit: int = 5) -> List[Article]:
         """Parse Hacker News API response."""
         articles = []
-        
+
         for hit in api_response.get('hits', [])[:limit]:
-            if hit.get('url') and hit.get('title'):
-                article = Article(
-                    title=hit['title'],
-                    url=hit.get('url', f"https://news.ycombinator.com/item?id={hit.get('objectID')}"),
-                    source=source_name,
-                    published_date=hit.get('created_at', ''),
-                    content=hit.get('comment_text', '')[:200] if hit.get('comment_text') else ''
-                )
-                articles.append(article)
-        
+            title = hit.get('title')
+            url = hit.get('url') or f"https://news.ycombinator.com/item?id={hit.get('objectID')}"
+            if not title or not url:
+                continue
+
+            article = Article(
+                title=title,
+                url=url,
+                source=source_name,
+                published_date=hit.get('created_at', ''),
+                content=(hit.get('comment_text') or '')[:200]
+            )
+            articles.append(article)
+
         return articles
     
     def _parse_web_scrape(self, html_content: str, source_name: str, limit: int, base_url: str) -> List[Article]:
@@ -431,13 +470,7 @@ class AINewsAgent:
                 not any(skip in href.lower() for skip in ['#', 'javascript:', 'mailto:', 'tel:']) and
                 not any(skip in title.lower() for skip in ['skip', 'menu', 'navigation', 'cookie', 'privacy'])):
                 
-                # Make URL absolute
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+                url = urljoin(base_url, href)
                 
                 # Only include if it looks like an article
                 if any(keyword in title.lower() for keyword in ['research', 'ai', 'machine learning', 'neural', 'model']):
@@ -464,14 +497,17 @@ class AINewsAgent:
         for link in article_links[:limit * 3]:
             href = link.get('href')
             title = link.get_text(strip=True)
+
+            href_l = (href or "").lower()
+            title_l = (title or "").lower()
+
+            if any(skip in href_l for skip in ['#', 'javascript:', 'mailto:', 'tel:']):
+                continue
+            if any(skip in title_l for skip in ['privacy', 'cookie', 'careers', 'about', 'contact', 'terms']):
+                continue
             
             if href and title and len(title) > 10:
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+                url = urljoin(base_url, href)
                 
                 article = Article(
                     title=title,
@@ -497,13 +533,17 @@ class AINewsAgent:
             href = link.get('href')
             title = link.get_text(strip=True)
             
+            href_l = (href or "").lower()
+            title_l = (title or "").lower()
+
+            if any(skip in href_l for skip in ['#', 'javascript:', 'mailto:', 'tel:']):
+                continue
+            if any(skip in title_l for skip in ['privacy', 'cookie', 'careers', 'about', 'contact', 'terms']):
+                continue
+            
             if href and title and len(title) > 10:
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+
+                url = urljoin(base_url, href)
                 
                 article = Article(
                     title=title,
@@ -563,13 +603,7 @@ class AINewsAgent:
             if title not in seen_titles and len(articles) < limit:
                 seen_titles.add(title)
                 
-                # Make URL absolute
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+                url = urljoin(base_url, href)
                 
                 # Only include if it looks like a real article (exclude contact/email links)
                 if (any(keyword in title.lower() for keyword in ['claude', 'anthropic', 'introducing', 'announcement', 'release', 'model', 'ai']) and
@@ -595,14 +629,17 @@ class AINewsAgent:
         for link in article_links[:limit * 3]:
             href = link.get('href')
             title = link.get_text(strip=True)
+
+            href_l = (href or "").lower()
+            title_l = (title or "").lower()
+
+            if any(skip in href_l for skip in ['#', 'javascript:', 'mailto:', 'tel:']):
+                continue
+            if any(skip in title_l for skip in ['privacy', 'cookie', 'careers', 'about', 'contact', 'terms']):
+                continue
             
             if href and title and len(title) > 10:
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+                url = urljoin(base_url, href)
                 
                 article = Article(
                     title=title,
@@ -633,12 +670,7 @@ class AINewsAgent:
                 not any(skip in href.lower() for skip in ['#', 'javascript:', 'mailto:', 'tel:']) and
                 not any(skip in title.lower() for skip in ['skip', 'menu', 'navigation', 'cookie', 'privacy'])):
                 
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+                url = urljoin(base_url, href)
                 
                 # Only include if it looks like an article
                 if any(keyword in title.lower() for keyword in ['qwen', 'model', 'ai', 'release', 'update']):
@@ -671,12 +703,7 @@ class AINewsAgent:
                 not any(skip in href.lower() for skip in ['#', 'javascript:', 'mailto:', 'tel:']) and
                 not any(skip in title.lower() for skip in ['skip', 'menu', 'navigation', 'cookie', 'privacy'])):
                 
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+                url = urljoin(base_url, href)
                 
                 # Only include if it looks like a press release or AI-related
                 if any(keyword in title.lower() for keyword in ['press', 'release', 'news', 'ai', 'semiconductor', 'chip']):
@@ -703,14 +730,17 @@ class AINewsAgent:
         for link in article_links[:limit * 3]:
             href = link.get('href')
             title = link.get_text(strip=True)
+
+            href_l = (href or "").lower()
+            title_l = (title or "").lower()
+
+            if any(skip in href_l for skip in ['#', 'javascript:', 'mailto:', 'tel:']):
+                continue
+            if any(skip in title_l for skip in ['privacy', 'cookie', 'careers', 'about', 'contact', 'terms']):
+                continue
             
             if href and title and len(title) > 10:
-                if href.startswith('/'):
-                    url = base_url.rstrip('/') + href
-                elif href.startswith('http'):
-                    url = href
-                else:
-                    url = base_url.rstrip('/') + '/' + href
+                url = urljoin(base_url, href)
                 
                 article = Article(
                     title=title,
@@ -730,7 +760,7 @@ class AINewsAgent:
         filtered_articles = []
         
         for article in articles:
-            text_to_search = (article.title + ' ' + article.content).lower()
+            text_to_search = f"{article.title} {article.content or ''}".lower()
             if any(keyword.lower() in text_to_search for keyword in keywords):
                 filtered_articles.append(article)
         
@@ -752,7 +782,7 @@ class AINewsAgent:
                 logger.info(f"Summarizing article {i+1}/{len(self.articles)}: {article.title[:50]}...")
                 
                 summary = self._summarize_with_gpt(article)
-                article.summary = summary
+                article.summary = summary.strip() if isinstance(summary, str) and summary.strip() else "Not specified"
                 summarized_articles.append(article)
                 
                 # Add delay to avoid rate limiting
@@ -797,16 +827,20 @@ class AINewsAgent:
         
         try:
             response = self._with_retries(lambda: self.client.chat.completions.create(
-                model="gpt-5-nano",  # Much cheaper model
+                model=os.getenv('SUMMARY_MODEL'),
                 messages=[
-                    {"role": "system", "content": "You are an expert AI researcher and technology analyst. Provide clear, concise summaries of AI news articles. No speculation. If some details are missing, still summarize what is known; only mark the missing parts as 'Not specified'. Write exactly 2-3 sentences."},
+                    {"role": "system", "content": "You are an expert AI researcher and technology analyst. Provide clear, concise summaries of AI news articles. If details are missing because the content is limited, say so in ONE short phrase at the end of the summary. Do not speculate. Do not make up information. Write exactly 2-3 sentences."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=120,  # Reduced tokens for cost optimization
+                #max_completion_tokens=120,  # Reduced tokens for cost optimization for nano model
+                max_tokens=120, 
                 temperature=0.15
             ))
             
-            return response.choices[0].message.content.strip()
+            text = (response.choices[0].message.content or "").strip()
+            if not text:
+                return "Not specified"
+            return text
             
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
@@ -836,7 +870,8 @@ class AINewsAgent:
         for i, article in enumerate(self.summarized_articles):
             summaries_text += f"{i+1}. {article.title}\n"
             summaries_text += f"   Source: {article.source}\n"
-            summaries_text += f"   Summary: {article.summary[:350]}\n\n"
+            summary = article.summary or "Not specified"
+            summaries_text += f"   Summary: {summary[:350]}\n\n"
         
         ranking_prompt = f"""
         Here are AI news summaries from today. Choose and rank the {effective_top_n} most important ones 
@@ -855,12 +890,13 @@ class AINewsAgent:
         
         try:
             response = self._with_retries(lambda: self.client.chat.completions.create(
-                model="gpt-5-nano",  # Much cheaper model
+                model=os.getenv('RANK_MODEL'),
                 messages=[
                     {"role": "system", "content": f"You are an expert AI analyst. Select the most important AI news stories based on technical significance, business impact, and research value. Return ONLY comma-separated article numbers (e.g., 3,1,7). Do not repeat numbers. Choose exactly {effective_top_n} distinct articles."},
                     {"role": "user", "content": ranking_prompt}
                 ],
-                max_tokens=30,  # Reduced tokens for ranking
+                #max_completion_tokens=30,  # Reduced tokens for ranking for nano model
+                max_tokens=30, 
                 temperature=0.0
             ))
             
@@ -914,7 +950,7 @@ class AINewsAgent:
         
         Args:
             date: Date string for filename
-            output_format: Output format ('markdown', 'notion', 'email')
+            output_format: Output format ('markdown', 'notion', 'email', 'slack')
             
         Returns:
             Output content as string
@@ -932,6 +968,8 @@ class AINewsAgent:
             return self._output_notion(date)
         elif output_format == 'email':
             return self._output_email(date)
+        elif output_format == 'slack':
+            return self._output_slack(date)
         else:
             logger.error(f"Unsupported output format: {output_format}")
             return ""
@@ -965,10 +1003,11 @@ class AINewsAgent:
             logger.info(f"Successfully posted to Notion: {title}")
             # Store the URL for notifications
             self.last_notion_url = page_url
-            return content
+            
         else:
             logger.error("Failed to post to Notion")
-            return ""
+        
+        return content
     
     def _output_email(self, date: str) -> str:
         """Output via email."""
@@ -986,6 +1025,26 @@ class AINewsAgent:
         else:
             logger.error("Failed to send email")
             return ""
+
+    def _output_slack(self, date: str) -> str:
+        """Output via Slack (Incoming Webhook)."""
+        from utils import SlackClient
+
+        MAX_LEN = 35000  # conservative buffer
+        content = self._generate_markdown_content(date)
+        if len(content) > MAX_LEN:
+            logger.warning(f"Content exceeds Slack message length limit ({MAX_LEN} chars). Truncating...")
+            content = content[:MAX_LEN] + "\n\n...(truncated)"
+
+        slack = SlackClient()
+        ok = slack.send_message(content)
+
+        if ok:
+            logger.info("Successfully posted to Slack")
+            return content
+        else:
+            logger.error("Failed to post to Slack")
+            return ""
     
     def _generate_markdown_content(self, date: str) -> str:
         """Generate markdown content for output."""
@@ -996,7 +1055,7 @@ class AINewsAgent:
         for i, article in enumerate(self.top_articles, 1):
             content += f"### {i}. {article.title}\n\n"
             content += f"**Source:** {article.source}\n\n"
-            content += f"**Summary:** {article.summary}\n\n"
+            content += f"**Summary:** {article.summary or 'Not specified'}\n\n"
             content += f"**Link:** {article.url}\n\n"
             content += "---\n\n"
         
@@ -1034,8 +1093,9 @@ class AINewsAgent:
 def main():
     """Main entry point for the AI News Agent."""
     parser = argparse.ArgumentParser(description='AI News Agent - Daily AI News Aggregator')
-    parser.add_argument('--date', type=str, help='Date in YYYY-MM-DD format (default: today)')
-    parser.add_argument('--output', choices=['markdown', 'notion', 'email'], default='markdown', 
+    parser.add_argument('--date', type=str, default=datetime.now().strftime('%Y-%m-%d'),
+                        help='Date in YYYY-MM-DD format (default: today)')
+    parser.add_argument('--output', choices=['markdown', 'notion', 'email', 'slack'], default='markdown', 
                        help='Output format (default: markdown)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--schedule', action='store_true', help='Run scheduled daily')
@@ -1049,7 +1109,7 @@ def main():
     
     if args.schedule:
         logger.info("Starting scheduled daily runs...")
-        schedule.every().day.at("09:00").do(agent.run_daily_pipeline)
+        schedule.every().day.at("09:00").do(lambda: agent.run_daily_pipeline(None, args.output))
         
         while True:
             schedule.run_pending()

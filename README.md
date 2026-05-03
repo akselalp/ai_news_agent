@@ -49,6 +49,9 @@ NOTION_DATABASE_ID=your_notion_database_id_here
 PUSHOVER_TOKEN=your_app_token_here
 PUSHOVER_USER=your_user_key_here
 
+# Optional: Slack Configuration
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/XXX/YYY/ZZZ"
+
 # Optional: Email Configuration
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -246,6 +249,7 @@ If you want to upgrade for better quality, one could switch to:
 | `NOTION_DATABASE_ID` | Yes | Notion database ID |
 | `PUSHOVER_TOKEN` | No | Pushover integration app token |
 | `PUSHOVER_USERD` | No | Pushover user key |
+| `SLACK_WEBHOOK` | No | Slack webhook |
 | `SMTP_SERVER` | No | SMTP server for email |
 | `EMAIL_USER` | No | Email username |
 | `EMAIL_PASSWORD` | No | Email password |

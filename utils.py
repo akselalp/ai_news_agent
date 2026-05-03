@@ -6,11 +6,12 @@ and other utility operations.
 """
 
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# import smtplib
+# from email.mime.text import MIMEText
+# from email.mime.multipart import MIMEMultipart
 from typing import List, Optional
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -316,6 +317,29 @@ class EmailClient:
         html += "</body></html>"
         return html
 
+class SlackClient:
+    """Slack client for posting AI news summaries via Incoming Webhook."""
+    
+    def __init__(self):
+        self.webhook_url = os.getenv("SLACK_WEBHOOK_URL")
+        if not self.webhook_url:
+            logger.warning("Slack webhook not configured (SLACK_WEBHOOK_URL missing)")
+
+    def send_message(self, text: str) -> bool:
+        if not self.webhook_url:
+            logger.error("SLACK_WEBHOOK_URL not configured")
+            return False
+
+        payload = {"text": text }
+
+        try:
+            resp = requests.post(self.webhook_url, json=payload, timeout=(10, 30))
+            resp.raise_for_status()
+            logger.info("Posted message to Slack")
+            return True
+        except Exception as e:
+            logger.error(f"Error posting to Slack: {e}")
+            return False
 
 def setup_logging(log_level: str = 'INFO') -> None:
     """
@@ -342,7 +366,7 @@ def validate_environment() -> bool:
         True if all required variables are set, False otherwise
     """
     required_vars = ['OPENAI_API_KEY']
-    optional_vars = ['NOTION_TOKEN', 'NOTION_DATABASE_ID', 'SMTP_SERVER', 'EMAIL_USER', 'EMAIL_PASSWORD', 'RECIPIENT_EMAIL']
+    optional_vars = ['NOTION_TOKEN', 'NOTION_DATABASE_ID', 'SMTP_SERVER', 'EMAIL_USER', 'EMAIL_PASSWORD', 'RECIPIENT_EMAIL', 'SLACK_WEBHOOK_URL']
     
     missing_required = []
     for var in required_vars:
