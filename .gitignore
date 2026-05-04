@@ -70,6 +70,9 @@ data/
 ehthumbs.db
 Thumbs.db
 
+# Local Cursor IDE paths (never commit)
+.cursor/
+
 # Temporary files
 *.tmp
 *.temp 
