@@ -1,27 +1,25 @@
 #!/usr/bin/env python3
-'''
-Simple cost monitor for OpenAI API usage.
-Run this weekly to check your usage.
-'''
+"""
+Lightweight cost / usage pointers for OpenAI.
 
-import openai
-import os
-from datetime import datetime, timedelta
+OpenAI does not expose a simple public "remaining balance" API for all accounts.
+This script prints authoritative links and explains where token usage is logged locally.
+
+During each run, the agent logs per-call usage and end-of-pipeline token totals to ai_news_agent.log
+(search for "OpenAI usage" and "prompt_tokens").
+"""
+
 from dotenv import load_dotenv
 
-load_dotenv()
 
-def check_usage():
-    client = openai.OpenAI()
-    
-    try:
-        # Note: This is a placeholder - OpenAI's usage endpoint may require different approach
-        print("📊 Cost monitoring feature")
-        print("💡 Tip: Check your usage at https://platform.openai.com/usage")
-        print("🎯 Target: Keep daily costs under $0.50 with optimized settings")
-        
-    except Exception as e:
-        print(f"Error checking usage: {e}")
+def main() -> None:
+    load_dotenv()
+    print("OpenAI usage dashboard (browser): https://platform.openai.com/usage")
+    print("API pricing reference: https://openai.com/pricing")
+    print(
+        "Local logs: grep -n \"OpenAI usage\\|prompt_tokens\\|completion_tokens\" ai_news_agent.log"
+    )
+
 
 if __name__ == "__main__":
-    check_usage()
+    main()
