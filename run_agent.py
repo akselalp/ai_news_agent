@@ -23,10 +23,10 @@ def main():
         load_dotenv(env_file)
         print(f"✅ Loaded .env file from: {env_file}")
         
-        # Verify API key is loaded
+        # Verify API key is loaded (never print secret material)
         api_key = os.getenv('OPENAI_API_KEY')
         if api_key:
-            print(f"✅ API Key loaded: {api_key[:10]}...{api_key[-4:]}")
+            print("✅ OPENAI_API_KEY is set")
         else:
             print("❌ No API key found in .env file")
             return 1
