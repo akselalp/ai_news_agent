@@ -43,11 +43,23 @@ ENV/
 # Logs
 *.log
 logs/
+daily_scheduler.log
+scheduler_error.log
+scheduler_output.log
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Generated files
 top_ai_news_*.md
 ai_news_agent.log
+ai_news_agent.log.*
 launchagent.txt
+
+# Cross-run dedupe state (do not commit)
+data/
 
 # OS
 .DS_Store
@@ -57,6 +69,9 @@ launchagent.txt
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Local Cursor IDE paths (never commit)
+.cursor/
 
 # Temporary files
 *.tmp

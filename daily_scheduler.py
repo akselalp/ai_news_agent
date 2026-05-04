@@ -33,7 +33,7 @@ def send_ios_notification(title: str, message: str, url: str = None):
     try:
         from pushover_complete import PushoverAPI
         pushover_token = os.getenv('PUSHOVER_TOKEN')
-        pushover_user = os.getenv('PUSHOVER_USER')
+        pushover_user = os.getenv('PUSHOVER_USER') or os.getenv('PUSHOVER_USER_KEY')
         
         if pushover_token and pushover_user:
             pushover = PushoverAPI(pushover_token)
@@ -85,7 +85,14 @@ def run_daily_ai_news():
         current_time = datetime.now().strftime('%I:%M %p')
         day_name = datetime.now().strftime('%A')
         
-        output = agent.run_daily_pipeline(today, 'notion')
+        def _article_date_filter_enabled() -> bool:
+            return os.getenv("ARTICLE_DATE_FILTER", "").strip().lower() in ("1", "true", "yes", "on")
+
+        output = agent.run_daily_pipeline(
+            today,
+            'notion',
+            filter_by_date=_article_date_filter_enabled(),
+        )
 
         # Also post the same content to Slack
         slack = SlackClient()

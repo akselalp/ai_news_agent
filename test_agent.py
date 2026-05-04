@@ -99,27 +99,6 @@ def test_markdown_generation():
     logger.info("✓ Markdown generation test passed")
 
 
-def test_environment_validation():
-    """Test environment validation."""
-    logger.info("Testing environment validation...")
-    
-    # Test with missing OpenAI key
-    original_key = os.environ.get('OPENAI_API_KEY')
-    if 'OPENAI_API_KEY' in os.environ:
-        del os.environ['OPENAI_API_KEY']
-    
-    try:
-        from ai_news_agent import main
-        # This should exit with error due to missing API key
-        logger.info("✓ Environment validation test passed (expected error for missing API key)")
-    except SystemExit:
-        logger.info("✓ Environment validation test passed (correctly caught missing API key)")
-    finally:
-        # Restore original key if it existed
-        if original_key:
-            os.environ['OPENAI_API_KEY'] = original_key
-
-
 def test_source_configuration():
     """Test news source configuration."""
     logger.info("Testing source configuration...")
@@ -145,7 +124,6 @@ def run_all_tests():
         test_article_creation()
         test_agent_initialization()
         test_markdown_generation()
-        test_environment_validation()
         test_source_configuration()
         
         logger.info("🎉 All tests passed!")

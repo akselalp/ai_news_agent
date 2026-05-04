@@ -6,9 +6,9 @@ and other utility operations.
 """
 
 import os
-# import smtplib
-# from email.mime.text import MIMEText
-# from email.mime.multipart import MIMEMultipart
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from typing import List, Optional
 import logging
 import requests
@@ -35,7 +35,7 @@ class NotionClient:
             logger.error("notion-client not installed. Install with: pip install notion-client")
             self.client = None
     
-    def create_page(self, title: str, content: str, date: str) -> str:
+    def create_page(self, title: str, content: str, date: str) -> Optional[str]:
         """
         Create a new page in Notion with AI news summary.
         
@@ -100,9 +100,15 @@ class NotionClient:
                 else:
                     raise e
             
-            page_url = response['url']
-            logger.info(f"Created Notion page: {page_url}")
-            return page_url
+            page_url = response.get("url") or ""
+            if not page_url and response.get("id"):
+                pid = str(response["id"]).replace("-", "")
+                page_url = f"https://www.notion.so/{pid}"
+            if page_url:
+                logger.info(f"Created Notion page: {page_url}")
+            else:
+                logger.error("Notion API returned no page URL and no id — cannot link or confirm seen-store eligibility")
+            return page_url or None
             
         except Exception as e:
             logger.error(f"Error creating Notion page: {e}")
@@ -321,13 +327,15 @@ class SlackClient:
     """Slack client for posting AI news summaries via Incoming Webhook."""
     
     def __init__(self):
-        self.webhook_url = os.getenv("SLACK_WEBHOOK_URL")
+        self.webhook_url = os.getenv("SLACK_WEBHOOK_URL") or os.getenv("SLACK_WEBHOOK")
         if not self.webhook_url:
-            logger.warning("Slack webhook not configured (SLACK_WEBHOOK_URL missing)")
+            logger.warning(
+                "Slack webhook not configured (set SLACK_WEBHOOK_URL or legacy SLACK_WEBHOOK)"
+            )
 
     def send_message(self, text: str) -> bool:
         if not self.webhook_url:
-            logger.error("SLACK_WEBHOOK_URL not configured")
+            logger.error("SLACK_WEBHOOK_URL (or SLACK_WEBHOOK) not configured")
             return False
 
         payload = {"text": text }
@@ -366,7 +374,6 @@ def validate_environment() -> bool:
         True if all required variables are set, False otherwise
     """
     required_vars = ['OPENAI_API_KEY']
-    optional_vars = ['NOTION_TOKEN', 'NOTION_DATABASE_ID', 'SMTP_SERVER', 'EMAIL_USER', 'EMAIL_PASSWORD', 'RECIPIENT_EMAIL', 'SLACK_WEBHOOK_URL']
     
     missing_required = []
     for var in required_vars:
